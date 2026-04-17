@@ -2,7 +2,6 @@
 
 ## Install + load required packages
 
-# install.packages("pacman")
 # install.packages("BiocManager")
 # install.packages("tidyverse")
 # install.packages("ggVennDiagram")
