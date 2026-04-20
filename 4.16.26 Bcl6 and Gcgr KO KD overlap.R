@@ -235,36 +235,30 @@ volcano_plotter(KO_data_clean, 0.05, 0.6, "DEG in GCGR-/- KO + BCL6 peak")
 volcano_plotter(KD_data_clean, 0.05, 0.6, "DEG in GCGR mAB KD + BCL6 peak")
 
 
+# Over-representation analysis --------------------------------------------
 
-
-
-
-
-
-
-
-
-
-#EnrichGO
-ego_bp <- enrichGO(
-  gene          = overlap_entrez,
-  OrgDb         = org.Mm.eg.db,
-  keyType       = "ENTREZID",
-  ont           = "BP",
+ego_KO <- enrichGO(
+  gene = gcgr_KO_overlap_genes,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "ALL", #"BP" is most common
   pAdjustMethod = "BH",
-  pvalueCutoff  = 0.05,
-  qvalueCutoff  = 0.2
+  qvalueCutoff = 0.05
 )
 
-head(ego_bp)
+dotplot(ego_KO,
+        title = "Pathways enriched in overlap of Bcl6 + Gcgr -/- KO"
+        )
 
-dotplot(ego_bp, showCategory = 15)
-cnetplot(ego_bp, showCategory = 5)
+ego_KD <- enrichGO(
+  gene = gcgr_mAbKD_overlap_genes,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "ALL", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
 
-
-######
-#Next steps:
-#Separate DEGs by KO vs KD
-#Repeat analysis
-#Make a volcano plot of DEGs with color if modified by BCL6
-#Figure out upregulation vs downregulation and log fold effect sizes
+dotplot(ego_KD, 
+        title = "Pathways enriched in overlap of Bcl6 + Gcgr mAb KD"
+        )
