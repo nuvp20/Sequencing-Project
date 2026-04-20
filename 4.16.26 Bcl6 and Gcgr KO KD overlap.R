@@ -1,11 +1,5 @@
 # Initialize --------------------------------------------------------------
 
-## Install + load required packages
-
-# install.packages("BiocManager")
-# install.packages("tidyverse")
-# install.packages("ggVennDiagram")
-
 library("pacman")
 
 pacman::p_load(
@@ -24,38 +18,11 @@ pacman::p_load(
   readxl,
   R.utils,
   EnhancedVolcano,
+  usethis,
+  gitcreds,
   try.bioconductor = TRUE
   )
 
-# # Old code to manually load all packages
-# BiocManager::install(
-#   c(
-#     "GO.db",
-#     "ChIPseeker",
-#     "TxDb.Mmusculus.UCSC.mm10.knownGene",
-#     "org.Mm.eg.db",
-#     "clusterProfiler",
-#     "DESeq2",
-#     "biomaRt",
-#     "enrichplot",
-#     "tidyverse",
-#     "ggVennDiagram"
-#     )
-# )
-# 
-# library(dplyr)
-# library(tidyverse)
-# library(ChIPseeker)
-# library(TxDb.Mmusculus.UCSC.mm10.knownGene)
-# library(org.Mm.eg.db)
-# library(clusterProfiler)
-# library(DESeq2)
-# 
-# library(readxl)
-# library(R.utils)
-# 
-# library(biomaRt)
-# library(ggVennDiagram)
 
 # ChIP Section ------------------------------------------------------------
 
@@ -104,53 +71,13 @@ bcl6_symbols_fed <- fed_results$symbols
 bcl6_targets_fed <- fed_results$targets
 
 
-# RNASeq Section - old ----------------------------------------------------------
-
-# # 1: Liver-specific gcgr KO vs WT (counts), M+F, Fast unknown
-# counts <- read.delim(
-#   gzfile("GSE302496_counts.txt.gz"),
-#   comment.char = "#",
-#   header = TRUE,
-#   sep = "\t",
-#   check.names = FALSE
-# )
-# 
-# rownames(counts) <- counts$Geneid
-# counts <- counts[, !(colnames(counts) %in% c("Geneid", "Chr", "Start", "End", "Strand", "Length"))]
-# 
-# #2: Al Powers gcgr blocking mAb 10 days (relative expression), M+F, Fasted
-# gunzip("GSE89035_normalized_expression_values_all_2552ACP.xls.gz", overwrite = FALSE)
-# expr <- read_excel("GSE89035_normalized_expression_values_all_2552ACP.xls")
-# 
-# str(expr)
-# head(expr)
-# rownames(expr) <- expr[[1]]
-# expr <- expr[,-1]
-# 
-# 
-# mart <- useEnsembl(
-#   biomart = "genes",
-#   dataset = "mmusculus_gene_ensembl"
-# )
-# 
-# map <- getBM(
-#   attributes = c("ensembl_gene_id", "mgi_symbol"),
-#   mart = mart
-# )
-# 
-# de_genes <- expr$symbol[expr$padj < 0.05 & abs(expr$log2FoldChange) > 1]
-
-
 # RNASeq Section - new ----------------------------------------------------
 
-# deg_data <- read_excel("NIHMS880297-supplement-3.xlsx", sheet = "Significantly altered in both", skip = 1)
-# my_degs <- deg_data %>%
-#   pull(`Ensembl ID`) %>%
-#   unique()
-
+# Read files with gcgr info
 gcgr_KO_data <- read_excel("NIHMS880297-supplement-3.xlsx", sheet = "FC-Gcgr- vs Gcgr+", skip = 1)
 gcgr_mAbKD_data <- read_excel("NIHMS880297-supplement-3.xlsx", sheet = "FC-Gcgr mAb vs Gcgr+", skip = 1)
 
+# Pull each unique DEG
 gcgr_KO_degs <- gcgr_KO_data %>%
   pull(`Ensembl ID`) %>%
   unique()
@@ -161,13 +88,11 @@ gcgr_mAbKD_degs <- gcgr_mAbKD_data %>%
 
 # Identify Overlap -----------------------------------------------------------------
 
-# overlap_genes <- intersect(my_degs, bcl6_targets_fast)
-
+# Find the overlap between Bcl6 and each Gcgr condition
 gcgr_KO_overlap_genes <- intersect(gcgr_KO_degs, bcl6_targets_fed)
 gcgr_mAbKD_overlap_genes <- intersect(gcgr_mAbKD_degs, bcl6_targets_fed)
 
-#convert all to symbols/entrez function
-
+# Function - given ensembl, pull symbol and entrez ID
 get_symbols_entrez <- function(genelist) {
   
   symbols <- bitr(
@@ -187,6 +112,7 @@ get_symbols_entrez <- function(genelist) {
   return(list(symbols = symbols, entrez = entrez))
 }
 
+#Pull alternate IDs for all DEGs
 gcgr_KO_results <- get_symbols_entrez(gcgr_KO_degs)
 gcgr_KO_symbols <- gcgr_KO_results$symbols
 gcgr_KO_entrez <- gcgr_KO_results$entrez
@@ -195,31 +121,10 @@ gcgr_mAbKD_results <- get_symbols_entrez(gcgr_mAbKD_degs)
 gcgr_mAbKD_symbols <- gcgr_mAbKD_results$symbols
 gcgr_mAbKD_entrez <- gcgr_mAbKD_results$entrez
 
-# #Old code for the genes de-ed in both sets
-# my_degs_symbols <- bitr(
-#   my_degs,
-#   fromType = "ENSEMBL",
-#   toType = "SYMBOL",
-#   OrgDb = org.Mm.eg.db
-# )$SYMBOL
-# 
-# overlap_symbols <- bitr(
-#   overlap_genes,
-#   fromType = "ENSEMBL",
-#   toType = "SYMBOL",
-#   OrgDb = org.Mm.eg.db
-# )$SYMBOL
-# 
-# overlap_entrez <- bitr(
-#   overlap_symbols,
-#   fromType = "SYMBOL",
-#   toType = "ENTREZID",
-#   OrgDb = org.Mm.eg.db
-# )$ENTREZID
-
 
 # Venn Diagram ---------------------------------------------------------------
 
+# All DE/Modulated genes, visualize magnitude of overlap
 gene_lists <- list(GCGR_KO = gcgr_KO_symbols,
                    GCGR_mAbKD = gcgr_mAbKD_symbols,
                    BCL6_Modulated = bcl6_symbols_fed)
@@ -238,34 +143,27 @@ gcgr_mAbKD_data <- gcgr_mAbKD_data %>%
 
 
 # rename columns in simpler/easier to use ways
-# head(gcgr_KO_data)
-
 gcgr_KO_data <- gcgr_KO_data %>% rename(
                                         "symbol" = `Gene Symbol`,
                                         "ensembl_id" = `Gene ID`,
-                                        "FC_KO" = `FC-Gcgr-/- vs Gcgr+/+`,
-                                        "Log_FC_KO" = `Log FC-Gcgr-/- vs Gcgr+/+`,
-                                        "ur_dr_KO" = `Regulation FC-Gcgr-/- vs Gcgr+/+`,
+                                        "FC" = `FC-Gcgr-/- vs Gcgr+/+`,
+                                        "Log_FC" = `Log FC-Gcgr-/- vs Gcgr+/+`,
+                                        "ur_dr" = `Regulation FC-Gcgr-/- vs Gcgr+/+`,
                                         "pval" = `p-value ( Z Test )`,
                                         "pval_adj" = `Corrected p-value ( Z Test )`,
                                         "entrez_id" = `Entrez ID`
                                         )
 
-# head(gcgr_KO_data)
-#head(gcgr_mAbKD_data)
-
 gcgr_mAbKD_data <- gcgr_mAbKD_data %>% rename(
                                               "symbol" = `Gene Symbol`,
                                               "ensembl_id" = `Gene ID`,
-                                              "FC_KD" = `FC-FC-Gcgr mAb vs Gcgr+/+`,
-                                              "Log_FC_KD" = `Log FC-Gcgr mAb vs Gcgr+/+`,
-                                              "ur_dr_KD" = `Regulation FC-Gcgr mAb vs Gcgr+/+`,
+                                              "FC" = `FC-FC-Gcgr mAb vs Gcgr+/+`,
+                                              "Log_FC" = `Log FC-Gcgr mAb vs Gcgr+/+`,
+                                              "ur_dr" = `Regulation FC-Gcgr mAb vs Gcgr+/+`,
                                               "pval" = `p-value ( Z Test )`,
                                               "pval_adj" = `Corrected p-value ( Z Test )`,
                                               "entrez_id" = `Entrez ID`
                                               )
-
-#head(gcgr_mAbKD_data)
 
 # remove anything that isn't modulated by bcl6, and create proper rownames for volcano plot
 KO_data_clean <- gcgr_KO_data %>%
@@ -274,33 +172,6 @@ KO_data_clean <- gcgr_KO_data %>%
 KD_data_clean <- gcgr_mAbKD_data %>%
   filter(is_bcl6_target == "Y") %>%
   column_to_rownames(var = "symbol")
-
-# #one function clean plot
-# EnhancedVolcano(KO_data_clean,
-#                 lab = rownames(KO_data_clean),
-#                 x = "Log_FC_KO",
-#                 y = "pval_adj",
-#                 title = "Gcgr -/- Volcano Plot",
-#                 subtitle = NULL,
-#                 legendPosition = "bottom",
-#                 legendLabSize = 12,
-#                 legendIconSize = 3,
-#                 axisLabSize = 12,
-#                 drawConnectors = TRUE,
-#                 widthConnectors = 0.75
-#                 )
-# EnhancedVolcano(KD_data_clean,
-#                 lab = rownames(KD_data_clean),
-#                 x = "Log_FC_KD",
-#                 y = "pval_adj",
-#                 title = "Gcgr mAb Volcano Plot",
-#                 # subtitle = NULL,
-#                 legendPosition = "bottom",
-#                 legendLabSize = 12,
-#                 legendIconSize = 3,
-#                 axisLabSize = 12,
-#                 drawConnectors = TRUE,
-#                 widthConnectors = 0.75)
 
 #from scratch plot function
 volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
@@ -359,8 +230,17 @@ volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
       legend.position = "none"
     )
 }
+
 volcano_plotter(KO_data_clean, 0.05, 0.6, "DEG in GCGR-/- KO + BCL6 peak")
 volcano_plotter(KD_data_clean, 0.05, 0.6, "DEG in GCGR mAB KD + BCL6 peak")
+
+
+
+
+
+
+
+
 
 
 
