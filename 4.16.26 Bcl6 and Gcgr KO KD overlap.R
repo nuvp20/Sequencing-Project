@@ -20,18 +20,20 @@ pacman::p_load(
   EnhancedVolcano,
   usethis,
   gitcreds,
+  data.table,
+  rtracklayer,
   try.bioconductor = TRUE
   )
 
 
-# ChIP Section ------------------------------------------------------------
+# Bcl6 ChIP Section ------------------------------------------------------------
 
 # Load bcl6 peak file - using fed
 bcl6_fed <- readPeakFile("GSE118788_BCL6-C57-Fed-peaks.bed.txt")
 bcl6_fast <- readPeakFile("GSE118788_BCL6-C57-Fast-peaks.bed.txt")
 
 # Processing function
-process_bcl6 <- function(peak_file) {
+process_chip <- function(peak_file) {
   # Annotate peaks
   anno <- annotatePeak(
     peak_file,
@@ -57,14 +59,14 @@ process_bcl6 <- function(peak_file) {
 }
 
 # Run for FAST
-fast_results <- process_bcl6(bcl6_fast)
+fast_results <- process_chip(bcl6_fast)
 peak_anno_fast <- fast_results$anno
 bcl6_genes_fast <- fast_results$genes
 bcl6_symbols_fast <- fast_results$symbols
 bcl6_targets_fast <- fast_results$targets
 
 # Run for FED
-fed_results <- process_bcl6(bcl6_fed)
+fed_results <- process_chip(bcl6_fed)
 peak_anno_fed <- fed_results$anno
 bcl6_genes_fed <- fed_results$genes
 bcl6_symbols_fed <- fed_results$symbols
@@ -131,7 +133,8 @@ gene_lists <- list(GCGR_KO = gcgr_KO_symbols,
 
 ggVennDiagram(gene_lists) + 
   scale_fill_gradient(low="blue", high = "red") +
-  labs(title = "Intersection of BCL6 Binding and DEGs in GCGR KO + KD")
+  labs(title = "Intersection of Bcl6 Binding and DEGs in Gcgr KO + KD") +
+  scale_x_continuous(expand = expansion(mult = 0.2))
 
 # Volcano Plot ------------------------------------------------------------
 
@@ -262,4 +265,38 @@ ego_KD <- enrichGO(
 dotplot(ego_KD, 
         title = "Pathways enriched in overlap of Bcl6 + Gcgr mAb KD"
         )
+
+
+
+
+# Creb ChIP Section -------------------------------------------------------
+
+creb_peaks_fast <- import("GSE45674_CREB_peaks_fasted_final.bed.gz")
+creb_fast_results <- process_chip(creb_peaks_fast)
+creb_peak_anno_fast <- creb_fast_results$anno
+creb_genes_fast <- creb_fast_results$genes
+creb_symbols_fast <- creb_fast_results$symbols
+creb_targets_fast <- creb_fast_results$targets
+
+creb_peaks_fed <- import("GSE45674_CREB_peaks_refed_final.bed.gz")
+creb_fed_results <- process_chip(creb_peaks_fed)
+creb_peak_anno_fed <- creb_fed_results$anno
+creb_genes_fed <- creb_fed_results$genes
+creb_symbols_fed <- creb_fed_results$symbols
+creb_targets_fed <- creb_fed_results$targets
+
+# Bcl6-Creb overlap + Venn diagram -------------------------------------------------------
+
+bcl6_creb_overlap_fast <- intersect(bcl6_targets_fast, creb_targets_fast)
+bcl6_creb_overlap_fed <- intersect(bcl6_targets_fed, creb_targets_fed)
+
+gene_lists <- list(Bcl6_fed <- bcl6_targets_fed,
+                   Bcl6_fasted <- bcl6_targets_fast,
+                   Creb_fed <- creb_targets_fed,
+                   Creb_fasted <- creb_targets_fast)
+
+ggVennDiagram(gene_lists, category.names = c("Bcl6_fed", "Bcl6_fasted", "Creb_fed", "Creb_fasted")) + 
+  scale_fill_gradient(low="blue", high = "red") +
+  labs(title = "Intersection of Bcl6 and Creb") +
+  scale_x_continuous(expand = expansion(mult = 0.2))
 
