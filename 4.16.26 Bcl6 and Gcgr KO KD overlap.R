@@ -572,8 +572,7 @@ crebfastgoplot <- crebfastgo1 / crebfastgo2 / crebfastgo3 + plot_layout(guides =
 crebfastgoplot
 
 
-# Plot Calls --------------------------------------------------------------
-plots
+# Plot Calls + Merges --------------------------------------------------------------
 kdkovenn
 vp1
 vp2
@@ -591,7 +590,10 @@ Annoplots
 crebfedgoplot
 crebfastgoplot
 
-
+# kdkovenn_wrapped <- wrap_elements(full = kdkovenn)
+# bcl6_gcgr_plots1 <- (kdkovenn_wrapped) +  (vp1 / vp2) + plot_annotation(tag_levels = "A")
+# 
+# bcl6_gcgr_plots1
 
 
 # Other things to look at possibly:
