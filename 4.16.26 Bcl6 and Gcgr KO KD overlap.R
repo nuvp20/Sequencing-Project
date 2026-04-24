@@ -27,6 +27,7 @@ pacman::p_load(
   gridExtra,
   ggpubr,
   eulerr,
+  janitor,
   try.bioconductor = TRUE
   )
 
@@ -195,7 +196,11 @@ KD_data_clean <- gcgr_mAbKD_data %>%
   column_to_rownames(var = "symbol")
 
 #from scratch plot function
-volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
+volcano_plotter <- function(df, pval_limit, logFC_limit, ymax = 20, xlims = 7, title, rownames = TRUE) {
+  
+  if(rownames) {
+    df <- df %>% rownames_to_column(var = "symbol")
+  }
   
   pval_cutoff <- -log10(pval_limit)
   logFC_cutoff <- logFC_limit
@@ -208,7 +213,7 @@ volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
       label = ifelse(
         rank(Log_FC, ties.method = "first") <= 15 |
           rank(-Log_FC, ties.method = "first") <= 15,
-        rownames(df),
+        symbol,
         NA
       ),
       
@@ -233,9 +238,9 @@ volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
       x = expression("log"[2]*"FC"),
       y = expression("-log"[10]*"p-value")
     ) +
-    coord_cartesian(ylim = c(0, 20), xlim = c(-7, 7)) +
-    scale_x_continuous(breaks = seq(-10, 10, 2)) +
-    scale_y_continuous(breaks = seq(0, 20, 5)) +
+    coord_cartesian(ylim = c(0, ymax), xlim = c(-xlims, xlims)) +
+    scale_x_continuous(breaks = seq(-(xlims + 2), (xlims + 2), 2)) +
+    scale_y_continuous(breaks = seq(0, ymax, ymax/20)) +
     ggtitle(title) +
     geom_text_repel(
       aes(label = label),
@@ -252,8 +257,9 @@ volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
     )
 }
 
-vp1 <- volcano_plotter(KO_data_clean, 0.05, 0.6, "DEG in GCGR-/- KO + BCL6 peak")
-vp2 <- volcano_plotter(KD_data_clean, 0.05, 0.6, "DEG in GCGR mAB KD + BCL6 peak")
+# some values are missing????
+vp1 <- volcano_plotter(KO_data_clean, 0.05, 0.6, title = "DEG in GCGR-/- KO + BCL6 peak")
+vp2 <- volcano_plotter(KD_data_clean, 0.05, 0.6, title = "DEG in GCGR mAB KD + BCL6 peak")
 vp1
 vp2
 volcanoes <- vp1 + vp2
@@ -572,6 +578,74 @@ crebfastgoplot <- crebfastgo1 / crebfastgo2 / crebfastgo3 + plot_layout(guides =
 crebfastgoplot
 
 
+
+# Bcl6 RNASeq -------------------------------------------------------------
+
+# warnings = at the end, many genes have 0 expression and NA logfold change
+bcl6_seq_data <- read_excel("GSE118787_Differential-Expression-Male-Livers.xlsx", 
+                            sheet = "Fed WTvLKO") %>% 
+                 clean_names() %>%
+                 rename("symbol" = "name",
+                        "Log_FC" = "wt_vs_lko_log2_fold_change",
+                        "pval" = "wt_vs_lko_p_value",
+                        "pval_adj" = "wt_vs_lko_adj_p_value"
+                       ) %>%
+                 mutate(ur_dr = case_when(
+                   is.na(Log_FC) ~ NA_character_,
+                   Log_FC > 0 ~ "up",
+                   Log_FC < 0 ~ "down",
+                   Log_FC == 0 ~ "neutral",
+                   TRUE ~ NA_character_
+                 ))
+                        
+
+
+
+# Filtering Bcl6 RNASeq results -------------------------------------------
+
+# create new df with minimum needed values and only include genes with same directionality in bcl6 and gcgr ko
+KO_filtered_genelist <- bcl6_seq_data %>%
+  select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+  inner_join(
+    gcgr_KO_data %>%
+      select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+      rename(
+        KO_Log_FC = Log_FC,
+        KO_pval = pval,
+        KO_pval_adj = pval_adj,
+        KO_ur_dr = ur_dr
+      ), 
+    by = "symbol"
+  ) %>%
+  filter (ur_dr == KO_ur_dr) %>%
+  select(symbol, ur_dr, Log_FC, pval, pval_adj, KO_ur_dr, KO_Log_FC, KO_pval, KO_pval_adj)
+
+# visualize
+ko_volcano <- volcano_plotter(KO_filtered_genelist, 0.05, 0.6, 260, 10, "DEGs in Bcl6 LKO with same directionality in Gcgr -/- KO", rownames = FALSE)
+ko_volcano
+
+
+# identical filtering/processing for gcgr mabkd
+KD_filtered_genelist <- bcl6_seq_data %>%
+  select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+  inner_join(
+    gcgr_mAbKD_data %>%
+      select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+      rename(
+        KD_Log_FC = Log_FC,
+        KD_pval = pval,
+        KD_pval_adj = pval_adj,
+        KD_ur_dr = ur_dr
+      ), 
+    by = "symbol"
+  ) %>%
+  filter (ur_dr == KD_ur_dr) %>%
+  select(symbol, ur_dr, Log_FC, pval, pval_adj, KD_ur_dr, KD_Log_FC, KD_pval, KD_pval_adj)
+
+kd_volcano <- volcano_plotter(KD_filtered_genelist, 0.05, 0.6, 270, 9, "DEGs in Bcl6 LKO with same directionality in Gcgr mAb KD", rownames = FALSE)
+kd_volcano
+
+
 # Plot Calls + Merges --------------------------------------------------------------
 kdkovenn
 vp1
@@ -589,14 +663,5 @@ TSSplots
 Annoplots
 crebfedgoplot
 crebfastgoplot
-
-# kdkovenn_wrapped <- wrap_elements(full = kdkovenn)
-# bcl6_gcgr_plots1 <- (kdkovenn_wrapped) +  (vp1 / vp2) + plot_annotation(tag_levels = "A")
-# 
-# bcl6_gcgr_plots1
-
-
-# Other things to look at possibly:
-# - Motifs?
-# - Density plotting?
-# - 
+ko_volcano
+kd_volcano
