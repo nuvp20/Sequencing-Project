@@ -28,6 +28,7 @@ pacman::p_load(
   ggpubr,
   eulerr,
   janitor,
+  openxlsx,
   try.bioconductor = TRUE
   )
 
@@ -645,7 +646,49 @@ KD_filtered_genelist <- bcl6_seq_data %>%
 kd_volcano <- volcano_plotter(KD_filtered_genelist, 0.05, 0.6, 270, 9, "DEGs in Bcl6 LKO with same directionality in Gcgr mAb KD", rownames = FALSE)
 kd_volcano
 
+# save plots to PDF
+ggsave(
+  filename = "ko_volcano_plot.pdf",
+  plot = ko_volcano,
+  width = 7,
+  height = 5
+)
 
+ggsave(
+  filename = "kd_volcano_plot.pdf",
+  plot = kd_volcano,
+  width = 7,
+  height = 5
+)
+
+# compare gene symbols to ChIP data
+KO_filtered_genelist <- KO_filtered_genelist %>%
+  mutate(bcl6_chip_assoc = if_else(symbol %in% bcl6_symbols_fed, "Y", "N")) %>%
+  mutate(creb_chip_assoc = if_else(symbol %in% creb_symbols_fed, "Y", "N"))
+
+KD_filtered_genelist <- KD_filtered_genelist %>%
+  mutate(bcl6_chip_assoc = if_else(symbol %in% bcl6_symbols_fed, "Y", "N")) %>%
+  mutate(creb_chip_assoc = if_else(symbol %in% creb_symbols_fed, "Y", "N"))
+
+# look at list of genes with peaks associated with creb and bcl6
+shortlist_KO <- KO_filtered_genelist %>%
+                  filter(bcl6_chip_assoc == "Y",
+                  creb_chip_assoc == "Y")
+
+shortlist_KD <- KD_filtered_genelist %>%
+                  filter(bcl6_chip_assoc == "Y",
+                  creb_chip_assoc == "Y")
+
+# export complete filtered lists and shortlists to excel
+export_list <- list(
+  "Bcl6 DEGs also in Gcgr KO" = KO_filtered_genelist,
+  "Bcl6 DEGs also in Gcgr mAb KD" = KD_filtered_genelist,
+  "Bcl6Gcgr KO w assoc ChiP peaks" = shortlist_KO,
+  "Bcl6Gcgr KD w assoc ChIP peaks" = shortlist_KD
+)
+
+write.xlsx(export_list, file = "Bcl6_Gcgr_RNASeq_Overlap.xlsx")
+    
 # Plot Calls + Merges --------------------------------------------------------------
 kdkovenn
 vp1
