@@ -22,6 +22,11 @@ pacman::p_load(
   gitcreds,
   data.table,
   rtracklayer,
+  patchwork,
+  gridGraphics,
+  gridExtra,
+  ggpubr,
+  eulerr,
   try.bioconductor = TRUE
   )
 
@@ -131,10 +136,23 @@ gene_lists <- list(GCGR_KO = gcgr_KO_symbols,
                    GCGR_mAbKD = gcgr_mAbKD_symbols,
                    BCL6_Modulated = bcl6_symbols_fed)
 
-ggVennDiagram(gene_lists) + 
-  scale_fill_gradient(low="blue", high = "red") +
-  labs(title = "Intersection of Bcl6 Binding and DEGs in Gcgr KO + KD") +
-  scale_x_continuous(expand = expansion(mult = 0.2))
+kdkofit <- euler(gene_lists)
+
+kdkovenn <- plot(
+                  kdkofit,
+                  quantities = TRUE,
+                  fills = list(alpha = 0.6),
+                  edges = TRUE,
+                  labels = list(font = 2),
+                  main = "Intersection of Bcl6 Binding and DEGs in Gcgr KO + KD"
+                )
+kdkovenn
+
+# Not using ggVennDiagram
+# ggVennDiagram(gene_lists) + 
+#   scale_fill_gradient(low="blue", high = "red") +
+#   labs(title = "Intersection of Bcl6 Binding and DEGs in Gcgr KO + KD") +
+#   scale_x_continuous(expand = expansion(mult = 0.2))
 
 # Volcano Plot ------------------------------------------------------------
 
@@ -234,40 +252,90 @@ volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
     )
 }
 
-volcano_plotter(KO_data_clean, 0.05, 0.6, "DEG in GCGR-/- KO + BCL6 peak")
-volcano_plotter(KD_data_clean, 0.05, 0.6, "DEG in GCGR mAB KD + BCL6 peak")
-
+vp1 <- volcano_plotter(KO_data_clean, 0.05, 0.6, "DEG in GCGR-/- KO + BCL6 peak")
+vp2 <- volcano_plotter(KD_data_clean, 0.05, 0.6, "DEG in GCGR mAB KD + BCL6 peak")
+vp1
+vp2
+volcanoes <- vp1 + vp2
+volcanoes
 
 # Over-representation analysis --------------------------------------------
 
-ego_KO <- enrichGO(
+ego_KO1 <- enrichGO(
   gene = gcgr_KO_overlap_genes,
   OrgDb = org.Mm.eg.db,
   keyType = "ENSEMBL",
-  ont = "ALL", #"BP" is most common
+  ont = "BP", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_KO2 <- enrichGO(
+  gene = gcgr_KO_overlap_genes,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "MF", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_KO3 <- enrichGO(
+  gene = gcgr_KO_overlap_genes,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "CC", #"BP" is most common
   pAdjustMethod = "BH",
   qvalueCutoff = 0.05
 )
 
-dotplot(ego_KO,
-        title = "Pathways enriched in overlap of Bcl6 + Gcgr -/- KO"
-        )
+kogo1 <- dotplot(ego_KO1, title = "Bcl6 + Gcgr -/- KO (Biological Process)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+kogo2 <- dotplot(ego_KO2, title = "Bcl6 + Gcgr -/- KO (Molecular Function)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+kogo3 <- dotplot(ego_KO3, title = "Bcl6 + Gcgr -/- KO (Cellular Component)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+kogoplot <- kogo1 / kogo2 / kogo3 + plot_layout(guides = "collect") & theme(legend.position = "right", axis.text.y = element_text(size = 8))
+kogoplot
 
-ego_KD <- enrichGO(
+ego_KD1 <- enrichGO(
   gene = gcgr_mAbKD_overlap_genes,
   OrgDb = org.Mm.eg.db,
   keyType = "ENSEMBL",
-  ont = "ALL", #"BP" is most common
+  ont = "BP", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_KD2 <- enrichGO(
+  gene = gcgr_mAbKD_overlap_genes,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "MF", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_KD3 <- enrichGO(
+  gene = gcgr_mAbKD_overlap_genes,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "CC", #"BP" is most common
   pAdjustMethod = "BH",
   qvalueCutoff = 0.05
 )
 
-dotplot(ego_KD, 
-        title = "Pathways enriched in overlap of Bcl6 + Gcgr mAb KD"
-        )
+kdgo1 <- dotplot(ego_KD1, title = "Bcl6 + Gcgr mAb KD (Biological Process)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+kdgo2 <- dotplot(ego_KD2, title = "Bcl6 + Gcgr mAb KD (Molecular Function)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
 
+# No CC enrichment, so kdgo3 gets special handling
+if (nrow(as.data.frame(ego_KD3)) == 0) {
+  kdgo3 <- ggplot() +
+    annotate("text", x = 0.5, y = 0.5,
+             label = "No significant CC enrichment",
+             size = 5) +
+    theme_void() +
+    ggtitle("Bcl6 + Gcgr mAb KD (Cellular Component)")
+} else {
+  kdgo3 <- dotplot(ego_KD3, showCategory = 10,
+                   title = "Bcl6 + Gcgr mAb KD (Cellular Component)") +
+    scale_y_discrete(labels = function(x) str_wrap(x, width = 40))
+}
 
-
+kdgoplot <- kdgo1 / kdgo2 / kdgo3 + plot_layout(guides = "collect") & theme(legend.position = "right", axis.text.y = element_text(size = 8))
+kdgoplot
 
 # Creb ChIP Section -------------------------------------------------------
 
@@ -285,18 +353,248 @@ creb_genes_fed <- creb_fed_results$genes
 creb_symbols_fed <- creb_fed_results$symbols
 creb_targets_fed <- creb_fed_results$targets
 
-# Bcl6-Creb overlap + Venn diagram -------------------------------------------------------
+# Bcl6-Creb overlap -------------------------------------------------------
 
 bcl6_creb_overlap_fast <- intersect(bcl6_targets_fast, creb_targets_fast)
 bcl6_creb_overlap_fed <- intersect(bcl6_targets_fed, creb_targets_fed)
 
-gene_lists <- list(Bcl6_fed <- bcl6_targets_fed,
-                   Bcl6_fasted <- bcl6_targets_fast,
-                   Creb_fed <- creb_targets_fed,
-                   Creb_fasted <- creb_targets_fast)
+# Creb Venn Diagram (OLD) -------------------------------------------------------
 
-ggVennDiagram(gene_lists, category.names = c("Bcl6_fed", "Bcl6_fasted", "Creb_fed", "Creb_fasted")) + 
-  scale_fill_gradient(low="blue", high = "red") +
-  labs(title = "Intersection of Bcl6 and Creb") +
-  scale_x_continuous(expand = expansion(mult = 0.2))
+# gene_lists <- list(Bcl6_fed <- bcl6_targets_fed,
+#                    Bcl6_fasted <- bcl6_targets_fast,
+#                    Creb_fed <- creb_targets_fed,
+#                    Creb_fasted <- creb_targets_fast)
+# 
+# ggVennDiagram(gene_lists, category.names = c("Bcl6_fed", "Bcl6_fasted", "Creb_fed", "Creb_fasted")) + 
+#   scale_fill_gradient(low="blue", high = "red") +
+#   labs(title = "Intersection of Bcl6 and Creb") +
+#   scale_x_continuous(expand = expansion(mult = 0.2))
+# 
+# 
+# fed_lists <- list (Bcl6_fed <- bcl6_targets_fed,
+#                    Creb_fed <- creb_targets_fed)
+# 
+# fed <- ggVennDiagram(fed_lists, category.names = c("Bcl6 fed", "Creb fed")) +
+#   scale_fill_gradient(low = "blue", high = "red") + 
+#   labs(title = "Bcl6 + Creb overlap, fed") + 
+#   scale_x_continuous(expand = expansion(mult = 0.2)) +
+#   coord_flip()
+# fed
+# 
+# fast_lists <- list (Bcl6_fast <- bcl6_targets_fast,
+#                    Creb_fast <- creb_targets_fast)
+# 
+# fast <- ggVennDiagram(fast_lists, category.names = c("Bcl6 fasted", "Creb fasted")) +
+#   scale_fill_gradient(low = "blue", high = "red") + 
+#   labs(title = "Bcl6 + Creb overlap, fasted") + 
+#   scale_x_continuous(expand = expansion(mult = 0.2)) +
+#   coord_flip()
+# fast
 
+# Creb Venn Diagram (NEW) -------------------------------------------------
+
+gene_lists <- list(
+  Bcl6_fed = bcl6_targets_fed,
+  Bcl6_fasted = bcl6_targets_fast,
+  Creb_fed = creb_targets_fed,
+  Creb_fasted = creb_targets_fast
+)
+
+fed_lists <- list(
+  Bcl6_fed = bcl6_targets_fed,
+  Creb_fed = creb_targets_fed
+)
+
+fast_lists <- list(
+  Bcl6_fasted = bcl6_targets_fast,
+  Creb_fasted = creb_targets_fast
+)
+
+fit_all <- euler(gene_lists)
+fit_fed <- euler(fed_lists)
+fit_fast <- euler(fast_lists)
+
+creb_all_venn <- plot(
+                      fit_all,
+                      quantities = TRUE,
+                      fills = list(alpha = 0.6),
+                      edges = TRUE,
+                      labels = list(font = 2),
+                      main = "Intersection of Bcl6 and Creb (Fed and Fasted)"
+                    )
+
+creb_fed_venn <- plot(
+                      fit_fed,
+                      quantities = TRUE,
+                      fills = list(alpha = 0.6, col = c("#4C78A8", "#F58518")),
+                      edges = TRUE,
+                      labels = list(font = 2),
+                      main = "Bcl6 + Creb overlap (Fed)"
+                    )
+
+creb_fast_venn <- plot(
+                        fit_fast,
+                        quantities = TRUE,
+                        fills = list(alpha = 0.6, col = c("#4C78A8", "#F58518")),
+                        edges = TRUE,
+                        labels = list(font = 2),
+                        main = "Bcl6 + Creb overlap (Fasted)"
+                      )
+
+creb_all_venn
+creb_fed_venn
+creb_fast_venn
+
+# Other ChIP analysis - distribution, TSSdistance, annoTypes-----------------------------------------------------
+
+# fed_peak = GenomicRanges::GRangesList(bcl6_fed, creb_peaks_fed)
+# fast_peak = GenomicRanges::GRangesList(bcl6_fast, creb_peaks_fast) 
+# names(fed_peak) <- c("Bcl6", "Creb")
+# names(fast_peak) <- c("Bcl6", "Creb")
+
+bcl6_fed_cov <- covplot(bcl6_fed) + labs(title = "ChIP Peaks - Bcl6 - fed")
+bcl6_fast_cov <- covplot(bcl6_fast) + labs(title = "ChIP Peaks - Bcl6 - fasted")
+creb_fed_cov <- covplot(creb_peaks_fed) + labs(title = "ChIP Peaks - Creb - fed")
+creb_fast_cov <- covplot(creb_peaks_fast) + labs(title = "ChIP Peaks - Creb - fasted")
+
+bcl6_fast_cov
+bcl6_fed_cov
+creb_fast_cov
+creb_fed_cov
+
+# this was the reference for the below figures
+# plotDistToTSS(peak_anno_fast)
+
+df1 <- as.data.frame(peak_anno_fast)
+df2 <- as.data.frame(peak_anno_fed)
+df3 <- as.data.frame(creb_peak_anno_fast)
+df4 <- as.data.frame(creb_peak_anno_fed)
+
+
+h1 <- ggplot(df1, aes(x = distanceToTSS)) +
+        geom_histogram(bins = 1000) +
+        coord_cartesian(xlim = c(-100000, 100000)) +
+        labs(title = "Distance to TSS in Bcl6 - fasted") +
+        theme_minimal()
+  
+
+h2 <- ggplot(df2, aes(x = distanceToTSS)) +
+        geom_histogram(bins = 1000) +
+        coord_cartesian(xlim = c(-100000, 100000)) +
+        labs(title = "Distance to TSS in Bcl6 - fed") +
+        theme_minimal()
+
+h3 <- ggplot(df3, aes(x = distanceToTSS)) +
+        geom_histogram(bins = 1000) +
+        coord_cartesian(xlim = c(-100000, 100000)) +
+        labs(title = "Distance to TSS in Creb - fast") +
+        theme_minimal()
+
+h4 <- ggplot(df4, aes(x = distanceToTSS)) +
+        geom_histogram(bins = 1000) +
+        coord_cartesian(xlim = c(-100000, 100000)) +
+        labs(title = "Distance to TSS in Creb - fed") +
+        theme_minimal()
+
+TSSplots <- (h1 + h2) / (h3 + h4)
+TSSplots
+
+p1 <- plotAnnoBar(peak_anno_fast) + labs(title = "Feature Distribution - Bcl6 - fasted")
+p2 <- plotAnnoBar(peak_anno_fed) + labs(title = "Feature Distribution - Bcl6 - fed")
+p3 <- plotAnnoBar(creb_peak_anno_fast) + labs(title = "Feature Distribution - Creb - fasted")
+p4 <- plotAnnoBar(creb_peak_anno_fed) + labs(title = "Feature Distribution - Creb - fed")
+
+Annoplots <- (p1 + p2) / (p3 + p4)  + plot_layout(guides = "collect") & theme(legend.position = "right")
+Annoplots
+
+# Creb GO -----------------------------------------------------------------
+
+ego_creb_fed1 <- enrichGO(
+  gene = bcl6_creb_overlap_fed,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "BP", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_creb_fed2 <- enrichGO(
+  gene = bcl6_creb_overlap_fed,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "MF", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_creb_fed3 <- enrichGO(
+  gene = bcl6_creb_overlap_fed,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "CC", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+
+crebfedgo1 <- dotplot(ego_creb_fed1, title = "Bcl6 + Creb - fed (Biological Process)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+crebfedgo2 <- dotplot(ego_creb_fed2, title = "Bcl6 + Creb - fed (Molecular Function)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+crebfedgo3 <- dotplot(ego_creb_fed3, title = "Bcl6 + Creb - fed (Cellular Component)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+crebfedgoplot <- crebfedgo1 / crebfedgo2 / crebfedgo3 + plot_layout(guides = "collect") & theme(legend.position = "right", axis.text.y = element_text(size = 8))
+crebfedgoplot
+
+ego_creb_fast1 <- enrichGO(
+  gene = bcl6_creb_overlap_fast,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "BP", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_creb_fast2 <- enrichGO(
+  gene = bcl6_creb_overlap_fast,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "MF", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+ego_creb_fast3 <- enrichGO(
+  gene = bcl6_creb_overlap_fast,
+  OrgDb = org.Mm.eg.db,
+  keyType = "ENSEMBL",
+  ont = "CC", #"BP" is most common
+  pAdjustMethod = "BH",
+  qvalueCutoff = 0.05
+)
+
+crebfastgo1 <- dotplot(ego_creb_fast1, title = "Bcl6 + Creb - fasted (Biological Process)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+crebfastgo2 <- dotplot(ego_creb_fast2, title = "Bcl6 + Creb - fasted (Molecular Function)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+crebfastgo3 <- dotplot(ego_creb_fast3, title = "Bcl6 + Creb - fasted (Cellular Component)") + scale_y_discrete(labels = function(x) str_wrap(x, width = 60))
+crebfastgoplot <- crebfastgo1 / crebfastgo2 / crebfastgo3 + plot_layout(guides = "collect") & theme(legend.position = "right", axis.text.y = element_text(size = 8))
+crebfastgoplot
+
+
+# Plot Calls --------------------------------------------------------------
+plots
+kdkovenn
+vp1
+vp2
+kogoplot
+kdgoplot
+creb_all_venn
+creb_fed_venn
+creb_fast_venn
+bcl6_fast_cov
+bcl6_fed_cov
+creb_fast_cov
+creb_fed_cov
+TSSplots
+Annoplots
+crebfedgoplot
+crebfastgoplot
+
+
+
+
+# Other things to look at possibly:
+# - Motifs?
+# - Density plotting?
+# - 
