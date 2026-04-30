@@ -29,6 +29,9 @@ pacman::p_load(
   eulerr,
   janitor,
   openxlsx,
+  ReactomePA,
+  KEGGREST,
+  FELLA,
   try.bioconductor = TRUE
   )
 
@@ -689,6 +692,36 @@ export_list <- list(
 
 write.xlsx(export_list, file = "Bcl6_Gcgr_RNASeq_Overlap.xlsx")
     
+# Recreational Metabolome Prediction --------------------------------------
+
+# chip peaks for this analysis
+bcl6_symbols_fed
+
+# need to extract DEGs from rnaseq
+bcl6_degs <- bcl6_seq_data %>%
+  filter(pval_adj < 0.05, abs(Log_FC) > 1)
+
+bcl6_deg_symbols <- bcl6_degs$symbol
+
+# intersect with chip targets
+direct_targets <- intersect(bcl6_deg_symbols, bcl6_symbols_fed)
+
+# consistent naming of direct vs all targets
+deg_all <- bcl6_degs$symbol
+deg_direct <- direct_targets
+deg_indirect <- setdiff(deg_all, deg_direct)
+bcl6_degs_direct <- bcl6_degs %>% filter(symbol %in% deg_direct)
+bcl6_degs_indirect <- bcl6_degs %>% filter(symbol %in% deg_indirect)
+
+# pull effect size and gene symbol
+gene_rank_all <- bcl6_degs$Log_FC
+names(gene_rank_all) <- bcl6_degs$symbol
+gene_rank_all <- sort(gene_rank_all, decreasing = TRUE)
+gene_rank_direct <- bcl6_degs_direct$Log_FC
+names(gene_rank_direct) <- bcl6_degs_direct$symbol
+gene_rank_direct <- sort(gene_rank_direct, decreasing = TRUE)
+
+
 # Plot Calls + Merges --------------------------------------------------------------
 kdkovenn
 vp1
