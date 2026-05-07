@@ -722,6 +722,7 @@ names(gene_rank_direct) <- bcl6_degs_direct$symbol
 gene_rank_direct <- sort(gene_rank_direct, decreasing = TRUE)
 
 
+
 # Plot Calls + Merges --------------------------------------------------------------
 kdkovenn
 vp1
@@ -741,3 +742,5 @@ crebfedgoplot
 crebfastgoplot
 ko_volcano
 kd_volcano
+
+
