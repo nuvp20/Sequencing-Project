@@ -27,37 +27,6 @@ pacman::p_load(
   try.bioconductor = TRUE
   )
 
-
-# # Old code to manually load all packages
-# BiocManager::install(
-#   c(
-#     "GO.db",
-#     "ChIPseeker",
-#     "TxDb.Mmusculus.UCSC.mm10.knownGene",
-#     "org.Mm.eg.db",
-#     "clusterProfiler",
-#     "DESeq2",
-#     "biomaRt",
-#     "enrichplot",
-#     "tidyverse",
-#     "ggVennDiagram"
-#     )
-# )
-# 
-# library(dplyr)
-# library(tidyverse)
-# library(ChIPseeker)
-# library(TxDb.Mmusculus.UCSC.mm10.knownGene)
-# library(org.Mm.eg.db)
-# library(clusterProfiler)
-# library(DESeq2)
-# 
-# library(readxl)
-# library(R.utils)
-# 
-# library(biomaRt)
-# library(ggVennDiagram)
-
 # ChIP Section ------------------------------------------------------------
 
 # Load bcl6 peak file - using fed
@@ -196,27 +165,7 @@ gcgr_mAbKD_results <- get_symbols_entrez(gcgr_mAbKD_degs)
 gcgr_mAbKD_symbols <- gcgr_mAbKD_results$symbols
 gcgr_mAbKD_entrez <- gcgr_mAbKD_results$entrez
 
-# #Old code for the genes de-ed in both sets
-# my_degs_symbols <- bitr(
-#   my_degs,
-#   fromType = "ENSEMBL",
-#   toType = "SYMBOL",
-#   OrgDb = org.Mm.eg.db
-# )$SYMBOL
-# 
-# overlap_symbols <- bitr(
-#   overlap_genes,
-#   fromType = "ENSEMBL",
-#   toType = "SYMBOL",
-#   OrgDb = org.Mm.eg.db
-# )$SYMBOL
-# 
-# overlap_entrez <- bitr(
-#   overlap_symbols,
-#   fromType = "SYMBOL",
-#   toType = "ENTREZID",
-#   OrgDb = org.Mm.eg.db
-# )$ENTREZID
+
 
 
 # Venn Diagram ---------------------------------------------------------------
@@ -239,7 +188,6 @@ gcgr_mAbKD_data <- gcgr_mAbKD_data %>%
 
 
 # rename columns in simpler/easier to use ways
-# head(gcgr_KO_data)
 
 gcgr_KO_data <- gcgr_KO_data %>% rename(
                                         "symbol" = `Gene Symbol`,
@@ -252,8 +200,6 @@ gcgr_KO_data <- gcgr_KO_data %>% rename(
                                         "entrez_id" = `Entrez ID`
                                         )
 
-# head(gcgr_KO_data)
-#head(gcgr_mAbKD_data)
 
 gcgr_mAbKD_data <- gcgr_mAbKD_data %>% rename(
                                               "symbol" = `Gene Symbol`,
@@ -266,7 +212,6 @@ gcgr_mAbKD_data <- gcgr_mAbKD_data %>% rename(
                                               "entrez_id" = `Entrez ID`
                                               )
 
-#head(gcgr_mAbKD_data)
 
 # remove anything that isn't modulated by bcl6, and create proper rownames for volcano plot
 KO_data_clean <- gcgr_KO_data %>%
@@ -276,32 +221,6 @@ KD_data_clean <- gcgr_mAbKD_data %>%
   filter(is_bcl6_target == "Y") %>%
   column_to_rownames(var = "symbol")
 
-# #one function clean plot
-# EnhancedVolcano(KO_data_clean,
-#                 lab = rownames(KO_data_clean),
-#                 x = "Log_FC_KO",
-#                 y = "pval_adj",
-#                 title = "Gcgr -/- Volcano Plot",
-#                 subtitle = NULL,
-#                 legendPosition = "bottom",
-#                 legendLabSize = 12,
-#                 legendIconSize = 3,
-#                 axisLabSize = 12,
-#                 drawConnectors = TRUE,
-#                 widthConnectors = 0.75
-#                 )
-# EnhancedVolcano(KD_data_clean,
-#                 lab = rownames(KD_data_clean),
-#                 x = "Log_FC_KD",
-#                 y = "pval_adj",
-#                 title = "Gcgr mAb Volcano Plot",
-#                 # subtitle = NULL,
-#                 legendPosition = "bottom",
-#                 legendLabSize = 12,
-#                 legendIconSize = 3,
-#                 axisLabSize = 12,
-#                 drawConnectors = TRUE,
-#                 widthConnectors = 0.75)
 
 #from scratch plot function
 volcano_plotter <- function(df, pval_limit, logFC_limit, title) {
