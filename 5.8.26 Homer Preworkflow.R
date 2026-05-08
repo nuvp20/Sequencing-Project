@@ -69,10 +69,8 @@ saveWorkbook(wb, "Filtered Peaks.xlsx", overwrite = TRUE)
 # 5. Venn diagram ---------------------------------------------------------
 
 fit <- euler(list(
-  #Ved_combined = unique(combined_list),
   Ved_KO = unique(KO_list),
   Ved_KD = unique(KD_list),
-  #Filtered_combined = unique(filtered_ellen_genelist$`Gene Name`),
   Filtered_KO = unique(KO_filtered_ellen_genelist$`Gene Name`),
   Filtered_KD = unique(KD_filtered_ellen_genelist$`Gene Name`)
   #ellen_list = unique(ellen_genelist$`Gene Name`)

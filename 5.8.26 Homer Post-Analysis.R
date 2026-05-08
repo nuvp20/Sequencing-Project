@@ -1,5 +1,7 @@
 
 # 0. Initialize -----------------------------------------------------------
+options(repos = getOption("repos")["CRAN"])
+
 pacman::p_load(
   ggplot2,
   ggpubr,
@@ -88,5 +90,3 @@ intersection_plot
 KO_plot
 KD_plot
 all_pcreb_plot
-
-# repeat homer workflow with the new file of total pCREB and then repeat boxplots with that too
