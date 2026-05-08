@@ -606,10 +606,10 @@ bcl6_seq_data <- read_excel("GSE118787_Differential-Expression-Male-Livers.xlsx"
 
 # create new df with minimum needed values and only include genes with same directionality in bcl6 and gcgr ko
 KO_filtered_genelist <- bcl6_seq_data %>%
-  select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+  dplyr::select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
   inner_join(
     gcgr_KO_data %>%
-      select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+      dplyr::select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
       rename(
         KO_Log_FC = Log_FC,
         KO_pval = pval,
@@ -619,7 +619,7 @@ KO_filtered_genelist <- bcl6_seq_data %>%
     by = "symbol"
   ) %>%
   filter (ur_dr == KO_ur_dr) %>%
-  select(symbol, ur_dr, Log_FC, pval, pval_adj, KO_ur_dr, KO_Log_FC, KO_pval, KO_pval_adj)
+  dplyr::select(symbol, ur_dr, Log_FC, pval, pval_adj, KO_ur_dr, KO_Log_FC, KO_pval, KO_pval_adj)
 
 # visualize
 ko_volcano <- volcano_plotter(KO_filtered_genelist, 0.05, 0.6, 260, 10, "DEGs in Bcl6 LKO with same directionality in Gcgr -/- KO", rownames = FALSE)
@@ -628,10 +628,10 @@ ko_volcano
 
 # identical filtering/processing for gcgr mabkd
 KD_filtered_genelist <- bcl6_seq_data %>%
-  select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+  dplyr::select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
   inner_join(
     gcgr_mAbKD_data %>%
-      select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
+      dplyr::select(symbol, ur_dr, Log_FC, pval, pval_adj) %>%
       rename(
         KD_Log_FC = Log_FC,
         KD_pval = pval,
@@ -641,21 +641,21 @@ KD_filtered_genelist <- bcl6_seq_data %>%
     by = "symbol"
   ) %>%
   filter (ur_dr == KD_ur_dr) %>%
-  select(symbol, ur_dr, Log_FC, pval, pval_adj, KD_ur_dr, KD_Log_FC, KD_pval, KD_pval_adj)
+  dplyr::select(symbol, ur_dr, Log_FC, pval, pval_adj, KD_ur_dr, KD_Log_FC, KD_pval, KD_pval_adj)
 
 kd_volcano <- volcano_plotter(KD_filtered_genelist, 0.05, 0.6, 270, 9, "DEGs in Bcl6 LKO with same directionality in Gcgr mAb KD", rownames = FALSE)
 kd_volcano
 
 # save plots to PDF
 ggsave(
-  filename = "ko_volcano_plot.pdf",
+  filename = "Output/ko_volcano_plot.pdf",
   plot = ko_volcano,
   width = 7,
   height = 5
 )
 
 ggsave(
-  filename = "kd_volcano_plot.pdf",
+  filename = "Output/kd_volcano_plot.pdf",
   plot = kd_volcano,
   width = 7,
   height = 5
